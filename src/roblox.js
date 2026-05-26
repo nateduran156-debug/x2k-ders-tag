@@ -5,13 +5,31 @@ const noblox = require('noblox.js')
 
 // log into roblox using the cookie from env variables
 async function setupRoblox() {
+  let cookie = process.env.ROBLOX_COOKIE
+
+  // debug log so we can tell if the env variable is actually being read
+  if (!cookie) {
+    console.error('ROBLOX_COOKIE environment variable is not set or is empty.')
+    console.error('Make sure the variable name is exactly "ROBLOX_COOKIE" with no spaces or typos.')
+    process.exit(1)
+  }
+
+  console.log('ROBLOX_COOKIE is set. Length:', cookie.length, 'chars')
+  console.log('Cookie starts with:', cookie.substring(0, 30) + '...')
+
+  // noblox expects the full cookie including the WARNING text
+  // if it doesnt start with _|WARNING it might be the wrong value
+  if (!cookie.startsWith('_|WARNING')) {
+    console.warn('Warning: Cookie does not start with _|WARNING. Make sure you copied the full .ROBLOSECURITY value.')
+  }
+
   try {
-    await noblox.setCookie(process.env.ROBLOX_COOKIE)
+    await noblox.setCookie(cookie)
     let me = await noblox.getCurrentUser()
     console.log('Roblox logged in as:', me.UserName)
   } catch (err) {
     console.error('Roblox login failed:', err.message)
-    // cant run the bot without roblox access so just exit
+    console.error('Double check that the cookie is the .ROBLOSECURITY value from roblox.com and that you are currently logged in on that account.')
     process.exit(1)
   }
 }
