@@ -9,10 +9,11 @@ const DATA_FILE = path.join(__dirname, '../data/store.json')
 
 // this is what the data looks like when the bot first starts
 const blankData = {
-  wlowners: [],       // people who have full access to everything
-  tmrUsers: [],       // tag managers by user id
-  tmrRoles: {},       // tag managers by discord role (per server)
-  tagLogChannels: {}, // which channel to send logs to (per server)
+  robloxCookie: null,   // set this using /cookie
+  wlowners: [],         // people who have full access to everything
+  tmrUsers: [],         // tag managers by user id
+  tmrRoles: {},         // tag managers by discord role (per server)
+  tagLogChannels: {},   // which channel to send logs to (per server)
   tags: ['x2 red', 'buni tag'] // the default tags
 }
 

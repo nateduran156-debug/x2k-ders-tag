@@ -2,25 +2,24 @@
 // uses noblox.js to talk to the roblox api
 
 const noblox = require('noblox.js')
+const { load } = require('./store')
 
-// log into roblox using the cookie from env variables
+// log into roblox — tries env variable first, then falls back to stored cookie
 async function setupRoblox() {
+  // check env variable first in case someone wants to use it the old way
   let cookie = process.env.ROBLOX_COOKIE
 
-  // debug log so we can tell if the env variable is actually being read
+  // if no env variable, try to load from the saved data file
   if (!cookie) {
-    console.error('ROBLOX_COOKIE environment variable is not set or is empty.')
-    console.error('Make sure the variable name is exactly "ROBLOX_COOKIE" with no spaces or typos.')
-    process.exit(1)
+    let data = load()
+    cookie = data.robloxCookie
   }
 
-  console.log('ROBLOX_COOKIE is set. Length:', cookie.length, 'chars')
-  console.log('Cookie starts with:', cookie.substring(0, 30) + '...')
-
-  // noblox expects the full cookie including the WARNING text
-  // if it doesnt start with _|WARNING it might be the wrong value
-  if (!cookie.startsWith('_|WARNING')) {
-    console.warn('Warning: Cookie does not start with _|WARNING. Make sure you copied the full .ROBLOSECURITY value.')
+  // if still nothing, just warn and move on
+  // the bot will still start, you just wont be able to use roblox commands until /cookie is run
+  if (!cookie) {
+    console.log('No Roblox cookie found. Run /cookie to set one before using roblox commands.')
+    return
   }
 
   try {
@@ -29,9 +28,18 @@ async function setupRoblox() {
     console.log('Roblox logged in as:', me.UserName)
   } catch (err) {
     console.error('Roblox login failed:', err.message)
-    console.error('Double check that the cookie is the .ROBLOSECURITY value from roblox.com and that you are currently logged in on that account.')
-    process.exit(1)
+    console.log('Run /cookie with a valid cookie to fix this.')
+    // dont exit, let the bot stay online so /cookie can be used to fix it
   }
+}
+
+// re-login to roblox with a new cookie
+// called after someone uses /cookie
+async function reinitRoblox(cookie) {
+  await noblox.setCookie(cookie)
+  let me = await noblox.getCurrentUser()
+  console.log('Roblox re-logged in as:', me.UserName)
+  return me.UserName
 }
 
 // get a roblox user id from their username
@@ -83,6 +91,7 @@ async function getUsernameFromId(userId) {
 
 module.exports = {
   setupRoblox,
+  reinitRoblox,
   getIdFromUsername,
   setGroupRank,
   getCurrentRankName,
