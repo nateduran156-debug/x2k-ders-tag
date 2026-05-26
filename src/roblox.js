@@ -23,8 +23,9 @@ async function setupRoblox() {
   }
 
   try {
-    await noblox.setCookie(cookie)
-    let me = await noblox.getCurrentUser()
+    // noblox.js v4: setCookie validates the cookie AND returns the current user
+    // trimming strips invisible whitespace that can sneak in from env vars or files
+    let me = await noblox.setCookie(cookie.trim())
     console.log('Roblox logged in as:', me.UserName)
   } catch (err) {
     console.error('Roblox login failed:', err.message)
@@ -36,8 +37,9 @@ async function setupRoblox() {
 // re-login to roblox with a new cookie
 // called after someone uses /cookie
 async function reinitRoblox(cookie) {
-  await noblox.setCookie(cookie)
-  let me = await noblox.getCurrentUser()
+  // noblox.js v4: setCookie validates and returns the user directly
+  // trim to strip any invisible whitespace discord might add to slash command input
+  let me = await noblox.setCookie(cookie.trim())
   console.log('Roblox re-logged in as:', me.UserName)
   return me.UserName
 }

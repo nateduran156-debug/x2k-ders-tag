@@ -36,7 +36,7 @@ module.exports = {
       })
     }
 
-    let cookie = interaction.options.getString('cookie')
+    let cookie = interaction.options.getString('cookie').trim()
 
     // defer so we have time to test the cookie with roblox
     await interaction.deferReply({ ephemeral: true })
