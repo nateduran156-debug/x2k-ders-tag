@@ -2,46 +2,68 @@
 // uses noblox.js to talk to the roblox api
 
 const noblox = require('noblox.js')
+const fetch = require('node-fetch')
 const { load } = require('./store')
+
+// validate a cookie directly against the modern roblox api
+// noblox.js uses the old mobileapi/userinfo endpoint which roblox often rejects
+// this uses the current users api instead and returns the username on success
+async function validateCookieDirect(cookie) {
+  const res = await fetch('https://users.roblox.com/v1/users/authenticated', {
+    headers: {
+      cookie: '.ROBLOSECURITY=' + cookie,
+      'User-Agent': 'Mozilla/5.0'
+    }
+  })
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Cookie is invalid or expired. Get a fresh .ROBLOSECURITY cookie from your browser and try again.')
+  }
+  if (!res.ok) {
+    throw new Error('Roblox API returned status ' + res.status + '. Try again in a moment.')
+  }
+  const data = await res.json()
+  if (!data.name) {
+    throw new Error('Could not read username from Roblox. The cookie may be invalid.')
+  }
+  return data.name
+}
 
 // log into roblox — tries env variable first, then falls back to stored cookie
 async function setupRoblox() {
-  // check env variable first in case someone wants to use it the old way
   let cookie = process.env.ROBLOX_COOKIE
 
-  // if no env variable, try to load from the saved data file
   if (!cookie) {
     let data = load()
     cookie = data.robloxCookie
   }
 
-  // if still nothing, just warn and move on
-  // the bot will still start, you just wont be able to use roblox commands until /cookie is run
   if (!cookie) {
     console.log('No Roblox cookie found. Run /cookie to set one before using roblox commands.')
     return
   }
 
   try {
-    // noblox.js v4: setCookie validates the cookie AND returns the current user
-    // trimming strips invisible whitespace that can sneak in from env vars or files
-    let me = await noblox.setCookie(cookie.trim())
-    console.log('Roblox logged in as:', me.UserName)
+    cookie = cookie.trim()
+    // validate using the modern api first
+    const username = await validateCookieDirect(cookie)
+    // set the cookie in noblox skipping its own (broken) validation
+    await noblox.setCookie(cookie, false)
+    console.log('Roblox logged in as:', username)
   } catch (err) {
     console.error('Roblox login failed:', err.message)
     console.log('Run /cookie with a valid cookie to fix this.')
-    // dont exit, let the bot stay online so /cookie can be used to fix it
   }
 }
 
-// re-login to roblox with a new cookie
-// called after someone uses /cookie
+// re-login to roblox with a new cookie, called after /cookie command
 async function reinitRoblox(cookie) {
-  // noblox.js v4: setCookie validates and returns the user directly
-  // trim to strip any invisible whitespace discord might add to slash command input
-  let me = await noblox.setCookie(cookie.trim())
-  console.log('Roblox re-logged in as:', me.UserName)
-  return me.UserName
+  cookie = cookie.trim()
+  // validate with the modern roblox api (avoids noblox's broken mobileapi/userinfo check)
+  const username = await validateCookieDirect(cookie)
+  // hand the cookie to noblox, skipping its own validation since we just did it
+  await noblox.setCookie(cookie, false)
+  console.log('Roblox re-logged in as:', username)
+  return username
 }
 
 // get a roblox user id from their username
