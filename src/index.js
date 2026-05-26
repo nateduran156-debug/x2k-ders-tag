@@ -1,7 +1,7 @@
 // main bot file, this is where everything starts
 // loads all the commands and listens for interactions
 
-const { Client, GatewayIntentBits, Collection, Events } = require('discord.js')
+const { Client, GatewayIntentBits, Collection, Events, REST, Routes } = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const { setupRoblox } = require('./roblox')
@@ -32,6 +32,35 @@ for (let file of commandFiles) {
   }
 }
 
+// registers all slash commands globally with discord
+// this runs automatically on startup so you dont have to run deploy.js manually
+async function registerCommands() {
+  let token = process.env.DISCORD_BOT_TOKEN
+  let clientId = process.env.DISCORD_CLIENT_ID
+
+  if (!token || !clientId) {
+    console.log('Skipping command registration — DISCORD_BOT_TOKEN or DISCORD_CLIENT_ID is not set.')
+    return
+  }
+
+  // build the list of commands to register
+  let commandData = []
+  for (let [name, command] of client.commands) {
+    commandData.push(command.data.toJSON())
+  }
+
+  let rest = new REST({ version: '10' }).setToken(token)
+
+  try {
+    console.log('Registering', commandData.length, 'slash commands with Discord...')
+    await rest.put(Routes.applicationCommands(clientId), { body: commandData })
+    console.log('Slash commands registered successfully.')
+  } catch (err) {
+    console.error('Failed to register slash commands:', err.message)
+    // not fatal, bot can still run
+  }
+}
+
 // runs once when the bot connects to discord
 client.once(Events.ClientReady, async () => {
   console.log('Bot is online as:', client.user.tag)
@@ -45,6 +74,9 @@ client.once(Events.ClientReady, async () => {
       console.log('Added initial owner to whitelist:', process.env.INITIAL_OWNER_ID)
     }
   }
+
+  // register slash commands globally right after the bot comes online
+  await registerCommands()
 })
 
 // this runs every time someone does a slash command or autocomplete
